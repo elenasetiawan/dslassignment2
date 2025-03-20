@@ -52,8 +52,8 @@ def analyze_country(co2_file, pop_file, country):
         - recent_rate: the aerage rate of change for the recent 20 years
 
     """
-    _, co2 = extract(co2_file, country)
-    _, pop = extract(pop_file, country)
+    _, co2,_ = extract(co2_file, country)
+    _, pop,_ = extract(pop_file, country)
     
     pop_filtered = pop[pop.index >= 1970]
     df = pd.DataFrame({
@@ -75,8 +75,8 @@ def analyze_country(co2_file, pop_file, country):
 
 
 #%%
-richco2 = extract ("co2emissionsfromwaste.csv", "Canada")
-richpop = extract("urbanpopulation.csv", "Canada")
+richco2 = extract ("co2emissionsfromwaste.csv", "Australia")
+richpop = extract("urbanpopulation.csv", "Australia")
 middleco2 = extract ("co2emissionsfromwaste.csv", "Brazil")
 middlepop = extract ("urbanpopulation.csv", "Brazil")
 poorco2 = extract ("co2emissionsfromwaste.csv", "Mali")
@@ -84,16 +84,16 @@ poorpop = extract ("urbanpopulation.csv", "Mali")
 
 print (richco2, richpop, middleco2, middlepop, poorco2, poorpop)
 
-#High income country: Canada
-_, canadaco2,_ = extract("co2emissionsfromwaste.csv", "Canada")
-_, canadapop,_ = extract("urbanpopulation.csv", "Canada")
-canadapop_filtered = canadapop[canadapop.index >= 1970]
-canada = pd.DataFrame({
-    "CO2_Emissions": canadaco2["Canada"],
-    "Urban_Population": canadapop_filtered["Canada"]
+#High income country: australia
+_, australiaco2,_ = extract("co2emissionsfromwaste.csv", "Australia")
+_, australiapop,_ = extract("urbanpopulation.csv", "Australia")
+australiapop_filtered = australiapop[australiapop.index >= 1970]
+australia = pd.DataFrame({
+    "CO2_Emissions": australiaco2["Australia"],
+    "Urban_Population": australiapop_filtered["Australia"]
 })
-canada = canada.dropna()
-canadacorr = canada["CO2_Emissions"].corr(canada["Urban_Population"])
+australia = australia.dropna()
+australiacorr = australia["CO2_Emissions"].corr(australia["Urban_Population"])
 
 #Middle income country 1: Brazil
 _, brazilco2,_ = extract("co2emissionsfromwaste.csv", "Brazil")
@@ -119,11 +119,11 @@ malicorr = mali["CO2_Emissions"].corr(mali["Urban_Population"])
 
 #%%
 
-canada["Country"] = "Canada"
+australia["Country"] = "Australia"
 brazil["Country"] = "Brazil"
 mali["Country"] = "Mali"
 
-combined_df = pd.concat([canada, brazil, mali], ignore_index=True)
+combined_df = pd.concat([australia, brazil, mali], ignore_index=True)
 
 summary_stats = combined_df.groupby("Country").agg({
     "CO2_Emissions": ["mean", "median", "std"],
@@ -144,15 +144,38 @@ for country, results in zip(["Australia", "Brazil", "Mali"], [australia_results,
     print(f"  First 20-year average rate of change: {results[2]:.4f}")
     print(f"  Recent 20-year average rate of change: {results[3]:.4f}\n")
     
-
+#%%
+for country, data in zip(["Australia", "Brazil", "Mali"], [australia, brazil, mali]):
+    print(f"{country}:")
+    print(f"  CO2 Emissions Skewness: {skew(data['CO2_Emissions']):.4f}")
+    print(f"  CO2 Emissions Kurtosis: {kurtosis(data['CO2_Emissions']):.4f}")
+    print()
 
 #%%
-# Plot the mean urban population with error bars
+countries = ["Australia", "Brazil", "Mali"]
+co2_emissions_data = [australia["CO2_Emissions"], brazil["CO2_Emissions"], mali["CO2_Emissions"]]
+
+means = []
+confidence_intervals = []
+
+for data in co2_emissions_data:
+    mean = np.mean(data)
+    low, high = bootstrap(data, np.mean, confidence_level=0.90)
+    means.append(mean)
+    confidence_intervals.append([low, high])  
+
+for country, mean, ci in zip(countries, means, confidence_intervals):
+    print(f"{country}:")
+    print(f"  Mean CO2 Emissions: {mean:.4f}")
+    print(f"  90% Confidence Interval: [{ci[0]:.4f}, {ci[1]:.4f}]")
+    print()
+
+#%%
 plt.figure(figsize=(10, 6))
-plt.bar(countries, means, yerr=np.array(confidence_intervals).T, capsize=10, color=["blue", "green", "purple"])
+plt.bar(countries, means, color=["blue", "green", "purple"])
 plt.xlabel("Country")
-plt.ylabel("Mean Urban Population")
-plt.title("Mean Urban Population with 90% Confidence Intervals")
+plt.ylabel("Mean CO2 Emissions")
+plt.title("Mean CO2 Emissions From Waste")
 plt.show()
 
 #%%
@@ -169,7 +192,7 @@ fig, axes = plt.subplots(1, 2, figsize=(12, 6))
 
 axes[0].bar(x - width/2, first_corrs, width, label="First 20 Years")
 axes[0].bar(x + width/2, recent_corrs, width, label="Recent 20 Years")
-axes[0].set_title("Correlation Between CO2 Emissions & Urban Population")
+axes[0].set_title("Correlation Between CO2 Emissions From Waste & Urban Population")
 axes[0].set_xticks(x)
 axes[0].set_xticklabels(countries)
 axes[0].set_ylabel("Correlation")
@@ -178,7 +201,7 @@ axes[0].legend()
 
 axes[1].bar(x - width/2, first_rates, width, label="First 20 Years")
 axes[1].bar(x + width/2, recent_rates, width, label="Recent 20 Years")
-axes[1].set_title("Average Rate of Change in CO2 Emissions")
+axes[1].set_title("Average Rate of Change in CO2 Emissions From Waste")
 axes[1].set_xticks(x)
 axes[1].set_xticklabels(countries)
 axes[1].set_ylabel("Rate of Change")
@@ -189,13 +212,13 @@ plt.show()
 #%%
 plt.figure(figsize=(10, 6))
 plt.boxplot(
-    [combined_df[combined_df["Country"] == country]["CO2_Emissions"] for country in ["Canada", "Brazil", "Mali"]],
-    labels=["Canada", "Brazil", "Mali"],
+    [combined_df[combined_df["Country"] == country]["CO2_Emissions"] for country in ["Australia", "Brazil", "Mali"]],
+    labels=["Australia", "Brazil", "Mali"],
     )
 
 plt.xlabel("Country")
 plt.ylabel("CO2 Emissions")
-plt.title("Distribution of CO2 Emissions by Country")
+plt.title("Distribution of CO2 Emissions From Waste by Country")
 
 plt.show()
 
@@ -203,13 +226,13 @@ plt.show()
 
 plt.figure()
 
-plt.plot(canada.index, canada["CO2_Emissions"], label="Canada", color="blue")
+plt.plot(australia.index, australia["CO2_Emissions"], label="Australia", color="blue")
 plt.plot(brazil.index, brazil["CO2_Emissions"], label="Brazil", color="green")
 plt.plot(mali.index, mali["CO2_Emissions"], label="Mali", color="purple")
 
 plt.xlabel("Year")
 plt.ylabel("CO2 Emissions")
-plt.title("CO2 Emissions Over Time by Country")
+plt.title("CO2 Emissions From Waste Over Time by Country")
 plt.legend()
 
 plt.show()
