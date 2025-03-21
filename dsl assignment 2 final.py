@@ -74,7 +74,7 @@ def analyze_country(co2_file, pop_file, country):
 
 
 
-#%%
+#%% organizes the dataset
 richco2 = extract ("co2emissionsfromwaste.csv", "Australia")
 richpop = extract("urbanpopulation.csv", "Australia")
 middleco2 = extract ("co2emissionsfromwaste.csv", "Brazil")
@@ -117,7 +117,8 @@ mali = pd.DataFrame({
 mali = mali.dropna()
 malicorr = mali["CO2_Emissions"].corr(mali["Urban_Population"])
 
-#%%
+
+#%% organizes the dataset and shows summary statistics
 
 australia["Country"] = "Australia"
 brazil["Country"] = "Brazil"
@@ -131,20 +132,68 @@ summary_stats = combined_df.groupby("Country").agg({
 })
 
 print("Summary Statistics by Country:", summary_stats)
-
-#%%
-australia_results = analyze_country("co2emissionsfromwaste.csv", "urbanpopulation.csv", "Australia")
-brazil_results = analyze_country("co2emissionsfromwaste.csv", "urbanpopulation.csv", "Brazil")
-mali_results = analyze_country("co2emissionsfromwaste.csv", "urbanpopulation.csv", "Mali")
-
-for country, results in zip(["Australia", "Brazil", "Mali"], [australia_results, brazil_results, mali_results]):
-    print(f"{country}:")
-    print(f"  First 20-year correlation: {results[0]:.4f}")
-    print(f"  Recent 20-year correlation: {results[1]:.4f}")
-    print(f"  First 20-year average rate of change: {results[2]:.4f}")
-    print(f"  Recent 20-year average rate of change: {results[3]:.4f}\n")
     
-#%%
+
+#%% prints skewness and kurtosis
+for country, data in zip(["Australia", "Brazil", "Mali"], [australia, brazil, mali]):
+    print(f"{country}:")
+    print(f"  CO2 Emissions Skewness: {skew(data['CO2_Emissions']):.4f}")
+    print(f"  CO2 Emissions Kurtosis: {kurtosis(data['CO2_Emissions']):.4f}")
+    print()
+
+
+#%% calculates and prints the mean co2 emissions and the confidence intervals
+countries = ["Australia", "Brazil", "Mali"]
+co2_emissions_data = [australia["CO2_Emissions"], brazil["CO2_Emissions"], mali["CO2_Emissions"]]
+
+means = []
+confidence_intervals = []
+
+for data in co2_emissions_data:
+    mean = np.mean(data)
+    low, high = bootstrap(data, np.mean, confidence_level=0.90)
+    means.append(mean)
+    confidence_intervals.append([low, high])  
+
+for country, mean, ci in zip(countries, means, confidence_intervals):
+    print(f"{country}:")
+    print(f"  Mean CO2 Emissions: {mean:.4f}")
+    print(f"  90% Confidence Interval: [{ci[0]:.4f}, {ci[1]:.4f}]")
+    print()
+
+
+#%% distributions of co2 emissions graph
+plt.figure(figsize=(10, 6))
+plt.boxplot(
+    [combined_df[combined_df["Country"] == country]["CO2_Emissions"] for country in ["Australia", "Brazil", "Mali"]],
+    labels=["Australia", "Brazil", "Mali"],
+    )
+
+plt.xlabel("Country")
+plt.ylabel("CO2 Emissions (metric tons per capita)")
+plt.title("Distribution of CO2 Emissions From Waste by Country")
+
+plt.show()
+
+
+#%% CO2 emissions over time by country graph
+
+plt.figure()
+
+plt.plot(australia.index, australia["CO2_Emissions"], label="Australia", color="blue")
+plt.plot(brazil.index, brazil["CO2_Emissions"], label="Brazil", color="green")
+plt.plot(mali.index, mali["CO2_Emissions"], label="Mali", color="purple")
+
+plt.xlabel("Year")
+plt.ylabel("CO2 Emissions (metric tons per capita)")
+plt.title("CO2 Emissions From Waste Over Time by Country")
+plt.grid()
+plt.legend()
+
+plt.show()
+
+
+#%% co2 emissions over time by country graph (with moving average)
 
 australia["CO2_Emissions_MA"] = australia["CO2_Emissions"].rolling(window=5).mean()
 
@@ -164,40 +213,14 @@ plt.plot(brazil.index, brazil["CO2_Emissions_MA"], label="Brazil (Moving Average
 plt.plot(mali.index, mali["CO2_Emissions"], label="Mali (Original)", color="purple", alpha=0.5)
 plt.plot(mali.index, mali["CO2_Emissions_MA"], label="Mali (Moving Average)", color="purple")
 
-# Add labels and title
 plt.xlabel("Year")
 plt.ylabel("CO2 Emissions (metric tons per capita)")
 plt.title("CO2 Emissions From Waste Over Time with Moving Average")
 plt.legend()
 plt.grid()
 plt.show()
-#%%
-for country, data in zip(["Australia", "Brazil", "Mali"], [australia, brazil, mali]):
-    print(f"{country}:")
-    print(f"  CO2 Emissions Skewness: {skew(data['CO2_Emissions']):.4f}")
-    print(f"  CO2 Emissions Kurtosis: {kurtosis(data['CO2_Emissions']):.4f}")
-    print()
 
-#%%
-countries = ["Australia", "Brazil", "Mali"]
-co2_emissions_data = [australia["CO2_Emissions"], brazil["CO2_Emissions"], mali["CO2_Emissions"]]
-
-means = []
-confidence_intervals = []
-
-for data in co2_emissions_data:
-    mean = np.mean(data)
-    low, high = bootstrap(data, np.mean, confidence_level=0.90)
-    means.append(mean)
-    confidence_intervals.append([low, high])  
-
-for country, mean, ci in zip(countries, means, confidence_intervals):
-    print(f"{country}:")
-    print(f"  Mean CO2 Emissions: {mean:.4f}")
-    print(f"  90% Confidence Interval: [{ci[0]:.4f}, {ci[1]:.4f}]")
-    print()
-
-#%%
+#%% mean co2 emissions by country graph
 plt.figure(figsize=(10, 6))
 plt.bar(countries, means, color=["blue", "green", "purple"])
 plt.xlabel("Country")
@@ -205,7 +228,21 @@ plt.ylabel("Mean CO2 Emissions (metric tons per capita)")
 plt.title("Mean CO2 Emissions From Waste")
 plt.show()
 
-#%%
+
+#%% shows and prints the correlations and rate of change
+australia_results = analyze_country("co2emissionsfromwaste.csv", "urbanpopulation.csv", "Australia")
+brazil_results = analyze_country("co2emissionsfromwaste.csv", "urbanpopulation.csv", "Brazil")
+mali_results = analyze_country("co2emissionsfromwaste.csv", "urbanpopulation.csv", "Mali")
+
+for country, results in zip(["Australia", "Brazil", "Mali"], [australia_results, brazil_results, mali_results]):
+    print(f"{country}:")
+    print(f"  First 20-year correlation: {results[0]:.6f}")
+    print(f"  Recent 20-year correlation: {results[1]:.6f}")
+    print(f"  First 20-year average rate of change: {results[2]:.6f}")
+    print(f"  Recent 20-year average rate of change: {results[3]:.6f}\n")
+    
+
+#%% correlations and average rate of change graph
 countries = ["Australia", "Brazil", "Mali"]
 first_corrs = [australia_results[0], brazil_results[0], mali_results[0]]
 recent_corrs = [australia_results[1], brazil_results[1], mali_results[1]]
@@ -215,7 +252,7 @@ recent_rates = [australia_results[3], brazil_results[3], mali_results[3]]
 
 x = np.arange(len(countries))
 width = 0.35  
-fig, axes = plt.subplots(1, 2, figsize=(12, 6))
+fig, axes = plt.subplots(1, 2, figsize=(15, 6))
 
 axes[0].bar(x - width/2, first_corrs, width, label="First 20 Years")
 axes[0].bar(x + width/2, recent_corrs, width, label="Recent 20 Years")
@@ -236,33 +273,6 @@ axes[1].legend()
 
 plt.show()
 
-#%%
-plt.figure(figsize=(10, 6))
-plt.boxplot(
-    [combined_df[combined_df["Country"] == country]["CO2_Emissions"] for country in ["Australia", "Brazil", "Mali"]],
-    labels=["Australia", "Brazil", "Mali"],
-    )
-
-plt.xlabel("Country")
-plt.ylabel("CO2 Emissions (metric tons per capita)")
-plt.title("Distribution of CO2 Emissions From Waste by Country")
-
-plt.show()
-
-#%%
-
-plt.figure()
-
-plt.plot(australia.index, australia["CO2_Emissions"], label="Australia", color="blue")
-plt.plot(brazil.index, brazil["CO2_Emissions"], label="Brazil", color="green")
-plt.plot(mali.index, mali["CO2_Emissions"], label="Mali", color="purple")
-
-plt.xlabel("Year")
-plt.ylabel("CO2 Emissions (metric tons per capita)")
-plt.title("CO2 Emissions From Waste Over Time by Country")
-plt.legend()
-
-plt.show()
 
 
 
